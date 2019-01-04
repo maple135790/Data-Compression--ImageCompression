@@ -86,3 +86,6 @@ if __name__ == "__main__":
     #print(mat_a)
     print("Elements of image: "+str(writeBufferSize-1))    
     print("image size: "+str(totalE))
+
+
+    a
