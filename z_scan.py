@@ -1,7 +1,36 @@
 import os
+import numpy as np
 from PIL import Image
 from numpy import asarray
 from collections import deque
+
+def qzr(array):  # 8-level simple quantizer
+    cArray =array.copy()
+    maxq =np.amax(array)
+    minq =np.amin(array)
+    level =8
+    ival =(maxq-minq)/level
+    for n in range(len(array)):  # Long and stink, don't open
+        for m in range(len(array[n])):
+            for i in np.nditer(array[n][m]):
+                if i <= ival:
+                    i = ival
+                if i > 2*ival and i <= 3*ival:
+                    i = ival*2
+                if i > 3*ival and i <= 4*ival:
+                    i = ival*3
+                if i > 4*ival and i <= 5*ival:
+                    i = ival*4
+                if i > 5*ival and i <= 6*ival:
+                    i = ival*5   
+                if i > 6*ival and i <= 7*ival:
+                    i = ival*6
+                if i > 7*ival and i <= 8*ival:
+                    i = ival*7
+                if i > 8*ival:
+                    i = ival*8
+                cArray[n,m] =i
+    return cArray
 
 def wfile(wbuf,filename):
     size =wbuf.__len__()
@@ -17,9 +46,10 @@ def bufferWrite(currentBufferSize,buffer,filename,array,j,k):
         buffer.append(array[j][k])
         currentBufferSize =wfile(buffer,filename)
     else:
+        qzr(array)
         buffer.append(array[j][k])
     return currentBufferSize
-    
+
 def gld(ar,j,k,writeBufferSize):   # Go left and down
     if k != maxE:
         k =k+1
@@ -54,10 +84,9 @@ def gur(ar,j,k,writeBufferSize):   # Go up and right
     return j,k,writeBufferSize
 
 if __name__ == "__main__":
-    #mat_a =[[65,75,60,50,51],[170,188,150,250,511],[1,2,3,5,4]]
     j =0
     k =0
-    im =Image.open("sample_128.bmp")
+    im =Image.open("sample02.bmp")
     mat_a =asarray(im)
     writeBuffer =deque([])
     exit_flag =False
@@ -68,6 +97,7 @@ if __name__ == "__main__":
     writeBuffer.append(mat_a[0][0])
     filename ="out.txt"
 
+    mat_a =qzr(mat_a) # Quantilize image first
     if os.path.exists(filename):
         os.remove(filename)
     open(filename, "x")
@@ -86,6 +116,3 @@ if __name__ == "__main__":
     #print(mat_a)
     print("Elements of image: "+str(writeBufferSize-1))    
     print("image size: "+str(totalE))
-
-
-    a
