@@ -170,70 +170,93 @@ def gur(ar,j,k,writeBufferSize):   # Go up and right
         pass
     return j,k,writeBufferSize
 
-def gld_d(ar,j,k,Dict,decw):   # Go left and down
+def gld_d(i,ar,j,k,Dict,decw,a,b):   # Go left and down
+    
     if k != maxE:
         k =k+1
     else:
         j =j+1
-    ar[j][k] =Dict.get(decw)
+    ar[j][k] =Dict.get(decw[a:b+i])
     while k != 0 :
         if j !=maxD:
             j =j+1
             k =k-1
+            a =b+i
+            b =b+i
         else:
             break
-        ar[j][k] =Dict.get(decw)
+        ar[j][k] =Dict.get(decw[a:b+i])
     return j,k
 
-def gur_d(ar,j,k,Dict,decw):   # Go up and right
+def gur_d(i,ar,j,k,Dict,decw,a,b):   # Go up and right
+    
     if j != maxD:
         j =j+1
     else:
         k =k+1
-    ar[j][k] =Dict.get(decw)
+    ar[j][k] =Dict.get(decw[a:b+i])
     if (j,k) != (maxD,maxE):
         while j != 0:
             if k !=maxE:
                 j =j-1
                 k =k+1
+                a =b+i
+                b =b+i
             else:
                 break
-            ar[j][k] =Dict.get(decw)
+            ar[j][k] =Dict.get(decw[a:b+i])
     else:
         pass
     return j,k
 
 def decFile():
     with open("dec.txt","r") as da:
-        a =4
-        b =5
+        a =0
+        b =0
+        i =1
         j =0
         k =0
+        exit_flag =False
         unfilled =da.read()
-        pArray =np.zeros((maxD+1,maxE+1),dtype= int)
-        pArray[0][0] =unfilled[0:4]
-        r_decDict ={j: k for k, j in decDict.items()}
-        for _ in range(len(unfilled)):
-            if unfilled[a:b] in r_decDict:
-                j,k =gld_d(pArray,j,k,r_decDict,unfilled[a:b])
-                j,k =gur_d(pArray,j,k,r_decDict,unfilled[a:b])    
+        r_decDict ={j.decode("ascii"):int.from_bytes(k,byteorder='big') for k, j in decDict.items()}
+        pArray =np.zeros((maxD+1,maxE+1),dtype=int)
+        pArray[0][0] =r_decDict[unfilled[0:2]]
+        while exit_flag != True:
+            if unfilled[a:b+i] in r_decDict:
+                b =b+i
+                a =b
+                j,k =gld_d(i,pArray,j,k,r_decDict,unfilled,a,b)
+                j,k =gur_d(i,pArray,j,k,r_decDict,unfilled,a,b)
+                
+                #i =1
+                if (j,k) == (maxD,maxE):
+                    pArray[maxD][maxE] =r_decDict[unfilled[totalE:totalE+2]]
+                    exit_flag =True
             else:
-                 
+                i +=1
+    return pArray
 
 if __name__ == "__main__":
     j =0
     k =0
     filename ="out.txt"
-    imageName ="sample03.bmp"
+    imageName ="sample02.bmp"
     im =Image.open(imageName) 
     mat_a =asarray(im)
+    dim =mat_a.ndim
     original_a =mat_a
     writeBuffer =deque([])
     exit_flag =False
     writeBufferSize =0
-    totalE =len(mat_a) * len(mat_a[0])
-    maxE =len(mat_a[0])-1       #number of elements in each dimension (Count in python-list)
-    maxD =len(mat_a)-1          #number of dimension in given matrix (Count in python-list)
+    
+    if dim == 2:
+        totalE =len(mat_a) * len(mat_a[0])
+        maxE =len(mat_a[0])-1       #number of elements in each dimension (Count in python-list)
+        maxD =len(mat_a)-1          #number of dimension in given matrix (Count in python-list)
+    else:
+        totalE =len(mat_a[0]) * len(mat_a[0][0])
+        maxE =len(mat_a[0][0])-1       #number of elements in each dimension (Count in python-list)
+        maxD =len(mat_a[0])-1
     binaryDict ={'0':bytes([0]),'1':bytes([1])}
     r_binaryDict ={bytes([0]):'0',bytes([1]):'1'}
 
@@ -263,7 +286,7 @@ if __name__ == "__main__":
     LZW_plainText(binaryDict,stre)
     c_len =LZW_decode(r_binaryDict)
     print("Compressed Ratio :"+str(op.getsize(imageName)/op.getsize("cpf.bin")))
-
+    clonePicArray =decFile()
     matb =asarray(mat_a,dtype=np.float)
     im1 =Image.fromarray(matb)
     im1_L =im1.convert("L")

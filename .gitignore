@@ -1,0 +1,10 @@
+inClass/
+.vscode/
+__pycache__/
+id_rsa
+id_rsa*
+midterm.py
+*.bin
+*.bmp
+*.jpg
+*.txt
