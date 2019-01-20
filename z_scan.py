@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 from PIL import Image
 from numpy import asarray
@@ -236,11 +237,34 @@ def decFile():
                 i +=1
     return pArray
 
+def getSupportFile(flst):
+    supportEtd =[".bmp",".jpg"]
+    if flst =="":
+        flst =os.listdir(os.getcwd())
+    supportFileLst =list()
+    for fle in flst:
+        for sext in supportEtd:
+            if fle.lower().endswith(sext):
+              supportFileLst.append(fle)
+              break
+    return supportFileLst
+
 if __name__ == "__main__":
     j =0
     k =0
+    
+    defaultFile ="default.bmp"
     filename ="out.txt"
-    imageName ="sample02.bmp"
+    supportExd =[".bmp",".jpg"]
+    if len(sys.argv) ==1:
+        imageName =defaultFile
+    else:
+        imageName =sys.argv[1]
+    if not op.isfile(imageName):
+        escMsg =imageName
+        if imageName =="default.bmp":
+            escMsg ='no image file is imported'
+        raise SystemExit('File not exist: '+escMsg)
     im =Image.open(imageName) 
     mat_a =asarray(im)
     dim =mat_a.ndim
@@ -248,7 +272,6 @@ if __name__ == "__main__":
     writeBuffer =deque([])
     exit_flag =False
     writeBufferSize =0
-    
     if dim == 2:
         totalE =len(mat_a) * len(mat_a[0])
         maxE =len(mat_a[0])-1       #number of elements in each dimension (Count in python-list)
