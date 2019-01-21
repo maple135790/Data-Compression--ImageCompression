@@ -66,13 +66,14 @@ def LZW_plainText(Dict,stre):
     fw.close()
     return
 
-def qzr(array):  # 8-level simple quantizer
+def qzr(array,level):  # 8-level simple quantizer
     #cArray =[[None]*(maxE+1)]*(maxD+1)
     cArray =np.zeros((maxD+1,maxE+1),dtype= int)
     decDict =dict()
     maxq =np.amax(array)
     minq =np.amin(array)
-    level =4
+    if level ==0:
+        level =int(input("Quantizer level: "))
     ival =int((maxq-minq)/level)
     for n in range(len(array)):  # Long and stink, don't open
         for m in range(len(array[0])):
@@ -84,10 +85,10 @@ def qzr(array):  # 8-level simple quantizer
                 i = ival*2
             elif i > 2*ival and i <= 3*ival:
                 i = ival*3
-            else:
-            #elif i > 3*ival and i <= 4*ival:
+            #else:
+            elif i > 3*ival and i <= 4*ival:
                 i = ival*4
-            '''    
+                
             elif i > 4*ival and i <= 5*ival:
                 i = ival*5   
             elif i > 5*ival and i <= 6*ival:
@@ -96,13 +97,13 @@ def qzr(array):  # 8-level simple quantizer
                 i = ival*7
             elif i > 7*ival:
                 i = ival*8
-            '''
+            
             cArray[n][m] =int(np.floor(i)) 
-    for i in range(0,4):
-        decw =np.binary_repr(i, width= 2)
+    for i in range(0,level):
+        decw =np.binary_repr(i, width= int(np.log2(level)))
         decw =bytes(decw,"ascii")
         decDict[bytes([int(np.floor(ival*(i+1)))])] =decw
-    return cArray,decDict
+    return cArray,decDict,level
 
 def wfile(wbuf,decodeDict,filename):
     size =wbuf.__len__()
@@ -210,32 +211,47 @@ def gur_d(i,ar,j,k,Dict,decw,a,b):   # Go up and right
         pass
     return j,k
 
-def decFile():
+def decFile(level):
     with open("dec.txt","r") as da:
         a =0
         b =0
         i =1
         j =0
         k =0
+        nBit =int(np.log2(level))
         exit_flag =False
         unfilled =da.read()
         r_decDict ={j.decode("ascii"):int.from_bytes(k,byteorder='big') for k, j in decDict.items()}
         pArray =np.zeros((maxD+1,maxE+1),dtype=int)
-        pArray[0][0] =r_decDict[unfilled[0:2]]
+        pArray[0][0] =r_decDict[unfilled[0:nBit]]
         while exit_flag != True:
             if unfilled[a:b+i] in r_decDict:
                 b =b+i
                 a =b
                 j,k =gld_d(i,pArray,j,k,r_decDict,unfilled,a,b)
                 j,k =gur_d(i,pArray,j,k,r_decDict,unfilled,a,b)
-                
-                #i =1
                 if (j,k) == (maxD,maxE):
-                    pArray[maxD][maxE] =r_decDict[unfilled[totalE:totalE+2]]
+                    pArray[maxD][maxE] =r_decDict[unfilled[totalE:totalE+nBit]]
                     exit_flag =True
             else:
                 i +=1
     return pArray
+
+def z_scan(imageMat):
+    j =0
+    k =0
+    writeBufferSize =0
+    exit_flag =False
+    while exit_flag !=True:
+        '''Going left & down '''
+        j,k,writeBufferSize =gld(imageMat,j,k,writeBufferSize)
+        '''Going up & right'''
+        j,k,writeBufferSize =gur(imageMat,j,k,writeBufferSize)
+        if (j,k) == (maxD,maxE):
+            writeBuffer.append(bytes([imageMat[-1][-1].astype("int_")]))
+            writeBufferSize +=wfile(writeBuffer,decDict,filename)
+            exit_flag =True
+    return imageMat
 
 def getSupportFile(flst):
     supportEtd =[".bmp",".jpg"]
@@ -249,29 +265,48 @@ def getSupportFile(flst):
               break
     return supportFileLst
 
-if __name__ == "__main__":
-    j =0
-    k =0
-    
+if __name__ == "__main__":    
     defaultFile ="default.bmp"
-    filename ="out.txt"
+    defaultFilename ="out.txt"
+    defaultLevel =4
     supportExd =[".bmp",".jpg"]
     if len(sys.argv) ==1:
         imageName =defaultFile
-    else:
+        filename = defaultFilename
+        level =defaultLevel
+    elif len(sys.argv) ==2:
         imageName =sys.argv[1]
+        filename = defaultFilename
+        level =defaultLevel
+    elif len(sys.argv) ==3:
+        imageName =sys.argv[1]
+        filename =sys.argv[2]
+        level =defaultLevel
+    elif len(sys.argv) ==4:
+        imageName =sys.argv[1]
+        filename =sys.argv[2]
+        level =sys.argv[3]
+    else:
+        escMsg =sys.argv[1:].__str__()
+        raise SystemExit('Unknown command: '+escMsg)
     if not op.isfile(imageName):
         escMsg =imageName
         if imageName =="default.bmp":
             escMsg ='no image file is imported'
         raise SystemExit('File not exist: '+escMsg)
+    if not level.isnumeric() or not 2<int(level)<=8:
+        escMsg =sys.argv[3]
+        raise SystemExit('Level value error: '+escMsg)
+    elif not 2<int(level)<=8:
+        while not 2<int(level)<=8:
+            level =input("Level value should >2 and <=8: ")
+    print("Compress file: "+imageName)
+    print("Output file: "+filename)
     im =Image.open(imageName) 
     mat_a =asarray(im)
     dim =mat_a.ndim
     original_a =mat_a
     writeBuffer =deque([])
-    exit_flag =False
-    writeBufferSize =0
     if dim == 2:
         totalE =len(mat_a) * len(mat_a[0])
         maxE =len(mat_a[0])-1       #number of elements in each dimension (Count in python-list)
@@ -282,39 +317,29 @@ if __name__ == "__main__":
         maxD =len(mat_a[0])-1
     binaryDict ={'0':bytes([0]),'1':bytes([1])}
     r_binaryDict ={bytes([0]):'0',bytes([1]):'1'}
-
-    mat_a,decDict =qzr(mat_a) # Quantilize image first
+    
+    mat_a,decDict,level =qzr(mat_a,level) # Quantilize image first
     mat_a =asarray(mat_a,dtype=np.unicode_)
     writeBuffer.append(bytes([mat_a[0][0].astype("int_")]))
     if os.path.exists(filename):
         os.remove(filename)
     open(filename, "x")
-    while exit_flag !=True:
-        try :
-            '''Going left & down '''
-            j,k,writeBufferSize =gld(mat_a,j,k,writeBufferSize)
-            '''Going up & right'''
-            j,k,writeBufferSize =gur(mat_a,j,k,writeBufferSize)
-            if (j,k) == (maxD,maxE):
-                writeBuffer.append(bytes([mat_a[-1][-1].astype("int_")]))
-                writeBufferSize +=wfile(writeBuffer,decDict,filename)
-                exit_flag =True
-        except IndexError:
-            pass
-    print("Elements of image: "+str(writeBufferSize-1))    
-    print("image size: "+str(totalE))
-    
+    z_scan(mat_a)
+    # print("Elements of image: "+str(writeBufferSize-1))    
+    # print("image size: "+str(totalE)) 
     f =open(filename,"r")
     stre =f.read()
     LZW_plainText(binaryDict,stre)
     c_len =LZW_decode(r_binaryDict)
     print("Compressed Ratio :"+str(op.getsize(imageName)/op.getsize("cpf.bin")))
-    clonePicArray =decFile()
+    clonePicArray =decFile(level)
     matb =asarray(mat_a,dtype=np.float)
     im1 =Image.fromarray(matb)
     im1_L =im1.convert("L")
-    im1_L.save("test.bmp")
-    im1_L.show()
+    im1_L.save(filename)
     mse = np.sum((original_a.astype("float") - matb) ** 2)
     mse /= float(original_a.shape[0] * original_a.shape[1])
-    print(mse)
+    mse =np.sqrt(mse)
+    print("Mean square error: "+str(mse))
+    print("Time spent: ")
+    im1_L.show()
